@@ -49,12 +49,29 @@ func (s *Syncer) Sync(ctx context.Context) (*SyncResult, error) {
 		TotalUpcomingContests: len(contests),
 	}
 
-	log.Printf("[Syncer] Found %d upcoming contest(s). Syncing with Google Calendar...", len(contests))
+	grouped := GroupContests(contests)
+	log.Printf("[Syncer] Found %d upcoming contest(s) grouped into %d event(s). Syncing with Google Calendar...",
+		len(contests), len(grouped))
 
-	for _, contest := range contests {
-		action, err := s.calClient.UpsertContestEvent(ctx, contest, s.reminderMinutes)
+	for _, g := range grouped {
+		var secondaryIDs []int64
+		if len(g.ContestIDs) > 1 {
+			secondaryIDs = g.ContestIDs[1:]
+		}
+
+		action, err := s.calClient.UpsertGroupedEvent(
+			ctx,
+			g.PrimaryID,
+			secondaryIDs,
+			g.Title,
+			g.ContestType,
+			g.StartTimeSeconds,
+			g.DurationSeconds,
+			g.Contests,
+			s.reminderMinutes,
+		)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to sync contest %d (%s): %v", contest.ID, contest.Name, err)
+			errMsg := fmt.Sprintf("failed to sync contest group %s (ID %d): %v", g.Title, g.PrimaryID, err)
 			log.Printf("[Syncer Error] %s", errMsg)
 			result.Errors = append(result.Errors, errMsg)
 			continue
@@ -62,10 +79,10 @@ func (s *Syncer) Sync(ctx context.Context) (*SyncResult, error) {
 
 		switch action {
 		case "created":
-			log.Printf("[Syncer] [+] Created event for contest %d (%s)", contest.ID, contest.Name)
+			log.Printf("[Syncer] [+] Created event for: %s", g.Title)
 			result.CreatedCount++
 		case "updated":
-			log.Printf("[Syncer] [~] Updated event for contest %d (%s)", contest.ID, contest.Name)
+			log.Printf("[Syncer] [~] Updated event for: %s", g.Title)
 			result.UpdatedCount++
 		case "unchanged":
 			result.UnchangedCount++

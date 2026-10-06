@@ -75,27 +75,39 @@ func FormatEventID(contestID int64) string {
 	return fmt.Sprintf("cfcontest%s", strconv.FormatInt(contestID, 10))
 }
 
-// UpsertContestEvent creates or updates a calendar event for a Codeforces contest.
-// Returns action taken ("created", "updated", "unchanged") and any error.
-func (c *Client) UpsertContestEvent(ctx context.Context, contest codeforces.Contest, reminderMinutes int64) (string, error) {
-	eventID := FormatEventID(contest.ID)
-	startTime := time.Unix(contest.StartTimeSeconds, 0).UTC()
-	endTime := time.Unix(contest.StartTimeSeconds+contest.DurationSeconds, 0).UTC()
-	contestURL := fmt.Sprintf("https://codeforces.com/contest/%d", contest.ID)
+// UpsertGroupedEvent creates or updates a calendar event for a grouped Codeforces contest.
+// It also cleans up any individual events that are now part of this merged group.
+func (c *Client) UpsertGroupedEvent(
+	ctx context.Context,
+	primaryID int64,
+	secondaryIDs []int64,
+	title string,
+	contestType string,
+	startTimeSeconds int64,
+	durationSeconds int64,
+	contests []codeforces.Contest,
+	reminderMinutes int64,
+) (string, error) {
+	eventID := FormatEventID(primaryID)
+	startTime := time.Unix(startTimeSeconds, 0).UTC()
+	endTime := time.Unix(startTimeSeconds+durationSeconds, 0).UTC()
 
-	description := fmt.Sprintf(
-		"Codeforces Contest\n\nLink: %s\nType: %s\nDuration: %d minutes\nContest ID: %d",
-		contestURL,
-		contest.Type,
-		contest.DurationSeconds/60,
-		contest.ID,
-	)
+	var descBuilder strings.Builder
+	descBuilder.WriteString(fmt.Sprintf("%s\n\n", title))
+	descBuilder.WriteString(fmt.Sprintf("Type: %s\nDuration: %d minutes\n\nContest Links:\n", contestType, durationSeconds/60))
+
+	primaryURL := fmt.Sprintf("https://codeforces.com/contest/%d", primaryID)
+	for _, cnt := range contests {
+		descBuilder.WriteString(fmt.Sprintf("- %s: https://codeforces.com/contest/%d\n", cnt.Name, cnt.ID))
+	}
+
+	description := descBuilder.String()
 
 	desiredEvent := &googlecalendar.Event{
 		Id:          eventID,
-		Summary:     contest.Name,
+		Summary:     title,
 		Description: description,
-		Location:    contestURL,
+		Location:    primaryURL,
 		Start: &googlecalendar.EventDateTime{
 			DateTime: startTime.Format(time.RFC3339),
 			TimeZone: "UTC",
@@ -129,7 +141,9 @@ func (c *Client) UpsertContestEvent(ctx context.Context, contest codeforces.Cont
 		}
 	}
 
-	// Check if event already exists
+	action := "unchanged"
+
+	// Check if primary event already exists
 	existingEvent, err := c.service.Events.Get(c.calendarID, eventID).Context(ctx).Do()
 	if err != nil {
 		if gerr, ok := err.(*googleapi.Error); ok && gerr.Code == http.StatusNotFound {
@@ -138,42 +152,62 @@ func (c *Client) UpsertContestEvent(ctx context.Context, contest codeforces.Cont
 			if insertErr != nil {
 				return "", fmt.Errorf("failed to insert event %s: %w", eventID, insertErr)
 			}
-			return "created", nil
+			action = "created"
+		} else {
+			return "", fmt.Errorf("failed to check existing event %s: %w", eventID, err)
 		}
-		return "", fmt.Errorf("failed to check existing event %s: %w", eventID, err)
-	}
-
-	// Check if update is needed
-	needsUpdate := false
-	if existingEvent.Summary != desiredEvent.Summary {
-		existingEvent.Summary = desiredEvent.Summary
-		needsUpdate = true
-	}
-	if existingEvent.Description != desiredEvent.Description {
-		existingEvent.Description = desiredEvent.Description
-		needsUpdate = true
-	}
-	if existingEvent.Start == nil || existingEvent.Start.DateTime != desiredEvent.Start.DateTime {
-		existingEvent.Start = desiredEvent.Start
-		needsUpdate = true
-	}
-	if existingEvent.End == nil || existingEvent.End.DateTime != desiredEvent.End.DateTime {
-		existingEvent.End = desiredEvent.End
-		needsUpdate = true
-	}
-	if existingEvent.Status != "confirmed" {
-		existingEvent.Status = "confirmed"
-		needsUpdate = true
-	}
-
-	if needsUpdate {
-		_, updateErr := c.service.Events.Update(c.calendarID, eventID, existingEvent).Context(ctx).Do()
-		if updateErr != nil {
-			return "", fmt.Errorf("failed to update event %s: %w", eventID, updateErr)
+	} else {
+		// Check if update is needed
+		needsUpdate := false
+		if existingEvent.Summary != desiredEvent.Summary {
+			existingEvent.Summary = desiredEvent.Summary
+			needsUpdate = true
 		}
-		return "updated", nil
+		if existingEvent.Description != desiredEvent.Description {
+			existingEvent.Description = desiredEvent.Description
+			needsUpdate = true
+		}
+		if existingEvent.Start == nil || existingEvent.Start.DateTime != desiredEvent.Start.DateTime {
+			existingEvent.Start = desiredEvent.Start
+			needsUpdate = true
+		}
+		if existingEvent.End == nil || existingEvent.End.DateTime != desiredEvent.End.DateTime {
+			existingEvent.End = desiredEvent.End
+			needsUpdate = true
+		}
+		if existingEvent.Status != "confirmed" {
+			existingEvent.Status = "confirmed"
+			needsUpdate = true
+		}
+		existingEvent.Reminders = desiredEvent.Reminders
+
+		if needsUpdate {
+			_, updateErr := c.service.Events.Update(c.calendarID, eventID, existingEvent).Context(ctx).Do()
+			if updateErr != nil {
+				return "", fmt.Errorf("failed to update event %s: %w", eventID, updateErr)
+			}
+			action = "updated"
+		}
 	}
 
-	log.Printf("[Sync] Contest ID %d (%s) is already up to date in calendar.", contest.ID, contest.Name)
-	return "unchanged", nil
+	// Clean up any secondary IDs that were previously created as standalone events
+	for _, secID := range secondaryIDs {
+		secEventID := FormatEventID(secID)
+		_ = c.DeleteEventIfExists(ctx, secEventID)
+	}
+
+	return action, nil
+}
+
+// DeleteEventIfExists removes an event by ID if it is currently in the calendar.
+func (c *Client) DeleteEventIfExists(ctx context.Context, eventID string) error {
+	err := c.service.Events.Delete(c.calendarID, eventID).Context(ctx).Do()
+	if err != nil {
+		if gerr, ok := err.(*googleapi.Error); ok && gerr.Code == http.StatusNotFound {
+			return nil
+		}
+		return err
+	}
+	log.Printf("[Sync] [-] Removed redundant event %s from calendar.", eventID)
+	return nil
 }

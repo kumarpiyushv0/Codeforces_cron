@@ -120,6 +120,12 @@ func (c *Client) UpsertContestEvent(ctx context.Context, contest codeforces.Cont
 					Minutes: 10,
 				},
 			},
+			ForceSendFields: []string{"UseDefault"},
+		}
+	} else {
+		desiredEvent.Reminders = &googlecalendar.EventReminders{
+			UseDefault:      true,
+			ForceSendFields: []string{"UseDefault"},
 		}
 	}
 

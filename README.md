@@ -1,6 +1,6 @@
 # Codeforces to Google Calendar Sync Cron
 
-A serverless cron job written in **Go** that automatically fetches upcoming contests from the public [Codeforces API](https://codeforces.com/api/contest.list) and synchronizes them into **Google Calendar**.
+A scheduled automation written in **Go** that automatically fetches upcoming contests from the public [Codeforces API](https://codeforces.com/api/contest.list) and synchronizes them into **Google Calendar** using **GitHub Actions**.
 
 ---
 
@@ -20,18 +20,15 @@ Never miss a Codeforces round! You can subscribe to this live-updating calendar 
 
 ## ✨ Features
 
-- **Automated Sync**: Fetches upcoming Codeforces contests twice a week (Mondays & Thursdays).
+- **Automated GitHub Actions Cron**: Runs automatically twice a week (every Monday & Thursday at 02:25 UTC / 07:55 AM IST).
 - **Parallel Division Merging**: Intelligently groups simultaneous rounds (e.g. Div. 1 + Div. 2) into a single clean event.
-- **Idempotent & Deduplicated**: Uses deterministic event IDs so repeated cron runs update contest timings without creating duplicates.
+- **Idempotent & Deduplicated**: Uses deterministic event IDs so repeated runs update contest schedules without creating duplicates.
 - **Configurable Reminders**: Sets popup reminders (30 minutes and 10 minutes prior to contest start).
-- **Multiple Hosting Options (100% Free)**:
-  - **GitHub Actions Scheduled Cron** *(Zero server infrastructure, runs on scheduled runner)*
-  - **Vercel Serverless Function** *(Serverless HTTP endpoint with `vercel.json` cron)*
-  - **Local / Docker / CLI**
+- **Zero Infrastructure Cost**: 100% free using GitHub Actions.
 
 ---
 
-## 🚀 Setup Guide (For Running Your Own Instance)
+## 🚀 Setup & Deployment Guide
 
 ### Step 1: Google Cloud Service Account Setup
 
@@ -58,49 +55,32 @@ Never miss a Codeforces round! You can subscribe to this live-updating calendar 
 3. Scroll down to **"Share with specific people or groups"** and click **Add people and groups**.
 4. Paste the **Service Account Email** (e.g., `cf-sync-cron@your-project.iam.gserviceaccount.com`).
 5. Set permission to **"Make changes to events"** and click **Send**.
-6. Under **"Integrate calendar"**, copy your **Calendar ID** (e.g., `your_email@gmail.com` or `xyz@group.calendar.google.com`).
+6. Under **"Integrate calendar"**, copy your **Calendar ID** (e.g., `your_calendar_id@group.calendar.google.com`).
 
 ---
 
-### Step 3: Deployment Options
+### Step 3: Configure GitHub Actions Secrets
 
-#### Option A: GitHub Actions (Recommended — Free & Reliable)
-
-1. Push this repository to GitHub (public or private).
+1. Push this repository to your GitHub account.
 2. In your GitHub repository, go to **Settings** > **Secrets and variables** > **Actions**.
 3. Add the following repository secrets:
    - `GOOGLE_CREDENTIALS_JSON`: The entire raw JSON content of your downloaded service account key file.
-   - `CALENDAR_ID`: Your Google Calendar ID (e.g. `your_email@gmail.com`).
-   - `REMINDER_MINUTES`: (Optional, default `30`).
-4. The workflow in [`.github/workflows/cron.yml`](.github/workflows/cron.yml) will automatically run twice a week (every Monday and Thursday at 02:25 UTC / 07:55 AM IST). You can also trigger it manually anytime under the **Actions** tab by clicking **Run workflow**.
-
----
-
-#### Option B: Vercel Serverless
-
-1. Install the [Vercel CLI](https://vercel.com/docs/cli) or import the repository in the Vercel dashboard.
-2. In Vercel Project Settings > **Environment Variables**, add:
-   - `GOOGLE_CREDENTIALS_JSON`: The raw JSON content of your service account key.
    - `CALENDAR_ID`: Your Google Calendar ID.
-   - `CRON_SECRET`: *(Optional)* A secure token to protect the `/api/cron` endpoint.
-3. Deploy:
-   ```bash
-   vercel deploy --prod
-   ```
-4. Vercel will trigger `/api/cron` according to the schedule in [`vercel.json`](vercel.json).
+   - `REMINDER_MINUTES`: (Optional, default `30`).
+4. The workflow in [`.github/workflows/cron.yml`](.github/workflows/cron.yml) will automatically run on schedule. You can also trigger it manually anytime under the **Actions** tab by clicking **Run workflow**.
 
 ---
 
-### Step 4: Local Testing
+### Step 4: Local Testing (Optional)
 
-To test the sync script locally on your machine:
+To run the sync script locally on your machine:
 
 1. Copy `.env.example` to `.env`:
    ```bash
    cp .env.example .env
    ```
-2. Set `GOOGLE_CREDENTIALS_JSON` (or `GOOGLE_APPLICATION_CREDENTIALS=./service_account.json`) and `CALENDAR_ID`.
-3. Run the CLI tool:
+2. Set `GOOGLE_CREDENTIALS_JSON` and `CALENDAR_ID`.
+3. Run the Go CLI:
    ```bash
    export $(cat .env | xargs) && go run cmd/cron/main.go
    ```
@@ -112,17 +92,15 @@ To test the sync script locally on your machine:
 ```
 .
 ├── .github/workflows/
-│   └── cron.yml             # GitHub Actions scheduled cron workflow
-├── api/
-│   └── cron.go              # Vercel Serverless HTTP handler
+│   └── cron.yml             # Scheduled GitHub Actions workflow (twice a week)
 ├── cmd/cron/
-│   └── main.go              # CLI entrypoint for local & GitHub Actions
+│   └── main.go              # CLI entrypoint for GitHub Actions & local runs
 ├── internal/
 │   ├── calendar/            # Google Calendar client and event upsert logic
 │   ├── codeforces/          # Codeforces API client and contest filtering
-│   └── syncer/              # Synchronization orchestrator with grouping logic
+│   └── syncer/              # Synchronization orchestrator with division grouping logic
 ├── go.mod
 ├── go.sum
-├── vercel.json              # Vercel Cron configuration
-└── README.md
+├── .env.example             # Environment variable template
+└── README.md                # Documentation and subscription links
 ```

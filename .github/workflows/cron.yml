@@ -2,8 +2,8 @@ name: Codeforces to Google Calendar Sync Cron
 
 on:
   schedule:
-    # Runs every 6 hours (at minute 0 of hours 0, 6, 12, 18 UTC)
-    - cron: '0 */6 * * *'
+    # Runs twice a week (every Monday and Thursday at 00:00 UTC)
+    - cron: '0 0 * * 1,4'
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:

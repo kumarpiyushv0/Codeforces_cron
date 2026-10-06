@@ -57,7 +57,7 @@ A serverless cron job written in **Go** that automatically fetches upcoming cont
    - `GOOGLE_CREDENTIALS_JSON`: The entire raw JSON content of your downloaded service account key file.
    - `CALENDAR_ID`: Your Google Calendar ID (e.g. `your_email@gmail.com`).
    - `REMINDER_MINUTES`: (Optional, default `30`).
-4. The workflow in [`.github/workflows/cron.yml`](.github/workflows/cron.yml) will automatically run every 6 hours. You can also trigger it manually anytime under the **Actions** tab by clicking **Run workflow**.
+4. The workflow in [`.github/workflows/cron.yml`](.github/workflows/cron.yml) will automatically run twice a week (every Monday and Thursday at 00:00 UTC). You can also trigger it manually anytime under the **Actions** tab by clicking **Run workflow**.
 
 ---
 

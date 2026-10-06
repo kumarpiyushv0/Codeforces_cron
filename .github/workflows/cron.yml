@@ -1,0 +1,30 @@
+name: Codeforces to Google Calendar Sync Cron
+
+on:
+  schedule:
+    # Runs every 6 hours (at minute 0 of hours 0, 6, 12, 18 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  sync:
+    name: Sync Contests to Calendar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Run Calendar Sync
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          CALENDAR_ID: ${{ secrets.CALENDAR_ID }}
+          REMINDER_MINUTES: ${{ secrets.REMINDER_MINUTES || '30' }}
+        run: |
+          go run cmd/cron/main.go

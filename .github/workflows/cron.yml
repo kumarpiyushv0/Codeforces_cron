@@ -2,8 +2,8 @@ name: Codeforces to Google Calendar Sync Cron
 
 on:
   schedule:
-    # Runs daily at 02:25 UTC / 07:55 AM IST
-    - cron: '25 2 * * *'
+    # Runs daily at 13:10 UTC / 06:40 PM IST
+    - cron: '10 13 * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:

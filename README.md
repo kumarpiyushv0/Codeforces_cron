@@ -20,7 +20,7 @@ Never miss a Codeforces round! You can subscribe to this live-updating calendar 
 
 ## ✨ Features
 
-- **Automated GitHub Actions Cron**: Runs automatically daily at 02:25 UTC / 07:55 AM IST.
+- **Automated GitHub Actions Cron**: Runs automatically daily at 13:10 UTC / 06:40 PM IST.
 - **Parallel Division Merging**: Intelligently groups simultaneous rounds (e.g. Div. 1 + Div. 2) into a single clean event.
 - **Idempotent & Deduplicated**: Uses deterministic event IDs so repeated runs update contest schedules without creating duplicates.
 - **Configurable Reminders**: Sets popup reminders (30 minutes and 10 minutes prior to contest start).

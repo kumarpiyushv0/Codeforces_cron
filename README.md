@@ -20,7 +20,7 @@ Never miss a Codeforces round! You can subscribe to this live-updating calendar 
 
 ## ✨ Features
 
-- **Automated GitHub Actions Cron**: Runs automatically twice a week (every Monday & Thursday at 02:25 UTC / 07:55 AM IST).
+- **Automated GitHub Actions Cron**: Runs automatically daily at 02:25 UTC / 07:55 AM IST.
 - **Parallel Division Merging**: Intelligently groups simultaneous rounds (e.g. Div. 1 + Div. 2) into a single clean event.
 - **Idempotent & Deduplicated**: Uses deterministic event IDs so repeated runs update contest schedules without creating duplicates.
 - **Configurable Reminders**: Sets popup reminders (30 minutes and 10 minutes prior to contest start).
@@ -92,7 +92,7 @@ To run the sync script locally on your machine:
 ```
 .
 ├── .github/workflows/
-│   └── cron.yml             # Scheduled GitHub Actions workflow (twice a week)
+│   └── cron.yml             # Scheduled GitHub Actions workflow (daily)
 ├── cmd/cron/
 │   └── main.go              # CLI entrypoint for GitHub Actions & local runs
 ├── internal/
